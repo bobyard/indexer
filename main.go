@@ -14,6 +14,11 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+const (
+	APTOS = 0
+	SUI   = 1
+)
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Panicf("%s: %s", msg, err)
@@ -65,7 +70,6 @@ func main() {
 	var forever chan struct{}
 
 	go func() {
-
 		for d := range msgs {
 			log.Printf("message: %s", d.Body)
 			data := string(d.Body)
@@ -77,7 +81,7 @@ func main() {
 				}
 
 				list := new(models.Lists)
-				list.ChainId = 1
+				list.ChainId = SUI
 				list.TokenId = listEvent.MoveEvent.Fields.ListID
 				list.SellerAddress = listEvent.MoveEvent.Fields.Owner
 				list.SallerValue = 100000000
@@ -95,8 +99,104 @@ func main() {
 					log.Panicf("%s", err)
 				}
 				log.Printf("recver Market Create Event")
-			}
+			} else if strings.Contains(data, "BuyEvent") {
+				var buy BuyEvent
+				if err := json.Unmarshal(d.Body, &buy); err != nil {
+					log.Panicf("%s", err)
+				}
 
+				list := new(models.Lists)
+				_, err := engine.Where("token_id = ?", buy.MoveEvent.Fields.ListID).Delete(list)
+				if err != nil {
+					log.Panicf("%s", err)
+				}
+
+				// add orders table
+				order := new(models.Orders)
+				order.TokenId = buy.MoveEvent.Fields.ListID
+				order.SellerAddress = buy.MoveEvent.Fields.Owner
+				order.BuyerAddress = "TODO"
+				order.Amount = buy.MoveEvent.Fields.Ask
+				order.CoinId = SUI
+				order.ChainId = 1
+				order.Time = time.Now()
+				_, err = engine.Insert(list)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+				log.Printf("recver Buy event and sueccess inserted")
+
+			} else if strings.Contains(data, "OfferEvent") {
+				var offer OfferToNftEvent
+				if err := json.Unmarshal(d.Body, &offer); err != nil {
+					log.Panicf("%s", err)
+				}
+
+				// add orders table
+				offerDB := new(models.Offers)
+
+				offerDB.TokenId = "TODO"
+				offerDB.OfferId = offer.MoveEvent.Fields.OfferID
+				offerDB.ChainId = SUI
+				offerDB.BuyerAddress = offer.MoveEvent.Fields.Owner
+				offerDB.Item = ""
+				offerDB.Amount = ""
+				_, err = engine.Insert(offerDB)
+
+				if err != nil {
+					log.Printf("%v", err)
+				}
+
+				log.Printf("recevr offer")
+
+			} else if strings.Contains(data, "CancelOfferEvent") {
+				var cancel CancelOfferEvent
+				if err := json.Unmarshal(d.Body, &cancel); err != nil {
+					log.Panicf("%s", err)
+				}
+
+				offer := new(models.Offers)
+				_, err := engine.Where("offer_id = ?", cancel.MoveEvent.Fields.OfferID).Delete(offer)
+				if err != nil {
+					log.Panicf("%s", err)
+				}
+
+				log.Printf("cancel offer")
+			} else if strings.Contains(data, "AcceptOfferEvent") {
+				var accpet AcceptOfferEvent
+				if err := json.Unmarshal(d.Body, &accpet); err != nil {
+					log.Panicf("%s", err)
+				}
+
+				list := new(models.Lists)
+				_, err := engine.Where("token_id = ?", accpet.MoveEvent.Fields.OfferID).Delete(list)
+				if err != nil {
+					log.Panicf("%s", err)
+				}
+				// let all offer cancel or maybe owner take by self
+				offer := new(models.Offers)
+				_, err = engine.Where("offer_id = ?", accpet.MoveEvent.Fields.OfferID).Delete(offer)
+				if err != nil {
+					log.Panicf("%s", err)
+				}
+
+				// add orders table
+				order := new(models.Orders)
+				order.TokenId = "TODO"
+				order.SellerAddress = accpet.MoveEvent.Fields.Owner
+				order.BuyerAddress = "TODO"
+				order.Amount = "1"
+				order.CoinId = SUI
+				order.ChainId = 1
+				order.Time = time.Now()
+				_, err = engine.Insert(list)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+
+			} else {
+				log.Printf(" TODO ----------------------")
+			}
 		}
 	}()
 
