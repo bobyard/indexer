@@ -39,6 +39,7 @@ type BuyEvent struct {
 			Ask    string `json:"ask"`
 			ListID string `json:"list_id"`
 			Owner  string `json:"owner"`
+			Buyer  string `json:"buyer"`
 		} `json:"fields"`
 		Bcs string `json:"bcs"`
 	} `json:"moveEvent"`
@@ -54,6 +55,7 @@ type OfferToNftEvent struct {
 			ExpireTime string `json:"expire_time"`
 			OfferID    string `json:"offer_id"`
 			Owner      string `json:"owner"`
+			ListID     string `json:"list_id"`
 		} `json:"fields"`
 		Bcs string `json:"bcs"`
 	} `json:"moveEvent"`
@@ -67,6 +69,7 @@ type CancelOfferEvent struct {
 		Type              string `json:"type"`
 		Fields            struct {
 			OfferID string `json:"offer_id"`
+			ListID  string `json:"list_id"`
 			Owner   string `json:"owner"`
 		} `json:"fields"`
 		Bcs string `json:"bcs"`
@@ -81,7 +84,9 @@ type AcceptOfferEvent struct {
 		Type              string `json:"type"`
 		Fields            struct {
 			OfferID string `json:"offer_id"`
+			ListID  string `json:"list_id"`
 			Owner   string `json:"owner"`
+			Buyer   string `json:"buyer"`
 		} `json:"fields"`
 		Bcs string `json:"bcs"`
 	} `json:"moveEvent"`

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,10 +85,16 @@ func main() {
 				list.ChainId = SUI
 				list.TokenId = listEvent.MoveEvent.Fields.ListID
 				list.SellerAddress = listEvent.MoveEvent.Fields.Owner
-				list.SallerValue = 100000000
+				s, err := strconv.Atoi(listEvent.MoveEvent.Fields.Ask)
+				if err != nil {
+					log.Panicf("%v", err)
+				}
+
+				list.SallerValue = int64(s)
 				list.SellerCoinId = 1
 				list.SellerEndTime = time.Now()
-				_, err := engine.Insert(list)
+
+				_, err = engine.Insert(list)
 				if err != nil {
 					log.Printf("%v", err)
 				}
@@ -115,7 +122,7 @@ func main() {
 				order := new(models.Orders)
 				order.TokenId = buy.MoveEvent.Fields.ListID
 				order.SellerAddress = buy.MoveEvent.Fields.Owner
-				order.BuyerAddress = "TODO"
+				order.BuyerAddress = buy.MoveEvent.Fields.Buyer
 				order.Amount = buy.MoveEvent.Fields.Ask
 				order.CoinId = SUI
 				order.ChainId = 1
@@ -134,13 +141,13 @@ func main() {
 
 				// add orders table
 				offerDB := new(models.Offers)
-
-				offerDB.TokenId = "TODO"
+				offerDB.TokenId = offer.MoveEvent.Fields.ListID
 				offerDB.OfferId = offer.MoveEvent.Fields.OfferID
 				offerDB.ChainId = SUI
 				offerDB.BuyerAddress = offer.MoveEvent.Fields.Owner
-				offerDB.Item = ""
-				offerDB.Amount = ""
+				offerDB.Item = ""   //TODO
+				offerDB.Amount = "" //TODO
+
 				_, err = engine.Insert(offerDB)
 
 				if err != nil {
@@ -169,7 +176,7 @@ func main() {
 				}
 
 				list := new(models.Lists)
-				_, err := engine.Where("token_id = ?", accpet.MoveEvent.Fields.OfferID).Delete(list)
+				_, err := engine.Where("token_id = ?", accpet.MoveEvent.Fields.ListID).Delete(list)
 				if err != nil {
 					log.Panicf("%s", err)
 				}
@@ -182,10 +189,10 @@ func main() {
 
 				// add orders table
 				order := new(models.Orders)
-				order.TokenId = "TODO"
+				order.TokenId = accpet.MoveEvent.Fields.ListID
 				order.SellerAddress = accpet.MoveEvent.Fields.Owner
-				order.BuyerAddress = "TODO"
-				order.Amount = "1"
+				order.BuyerAddress = accpet.MoveEvent.Fields.Buyer
+				order.Amount = "1" //TODO make this real
 				order.CoinId = SUI
 				order.ChainId = 1
 				order.Time = time.Now()
