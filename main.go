@@ -28,7 +28,6 @@ func failOnError(err error, msg string) {
 }
 
 var engine *xorm.Engine
-
 var sui *xorm.Engine
 
 func Connect() {
