@@ -9,6 +9,7 @@ import (
 
 	"encoding/json"
 	"github.com/bobyard/indexer/models"
+	"github.com/bobyard/indexer/suimodels"
 	"github.com/go-xorm/xorm"
 	_ "github.com/lib/pq"
 
@@ -28,6 +29,8 @@ func failOnError(err error, msg string) {
 
 var engine *xorm.Engine
 
+var sui *xorm.Engine
+
 func Connect() {
 	connStr := "user=obj password=!Woaini521 dbname=objdb host=127.0.0.1 port=5432 sslmode=disable"
 	var err error
@@ -37,8 +40,46 @@ func Connect() {
 	}
 }
 
+func ConnectSui() {
+	connStr := "user=sui_indexer password=!Woaini521 dbname=indexer host=127.0.0.1 port=5432 sslmode=disable"
+	var err error
+	sui, err = xorm.NewEngine("postgres", connStr)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+}
+
 func main() {
 	Connect()
+	ConnectSui()
+
+	go func() {
+		for {
+			collections := make([]*models.Collections, 0)
+			err := engine.Where("chain_id = ?", SUI).Find(&collections)
+			if err != nil {
+				log.Printf("%v", err)
+			}
+
+			for _, collection := range collections {
+				objects := make([]*suimodels.Objects, 0)
+				err = sui.Where("object_type = ?", collection.CollectionId).Find(&objects)
+				if err != nil {
+					log.Printf("faild %v", err)
+				}
+
+				collection.Supply = int64(len(objects))
+				//TODO find a offer and update foolr price
+				_, err := engine.Id(collection.Id).Update(collection)
+				if err != nil {
+					log.Printf("update faild %v", err)
+				}
+			}
+
+			m, _ := time.ParseDuration("5s")
+			time.Sleep(m)
+		}
+	}()
 
 	f, err := os.Create("sql.log")
 	if err != nil {
