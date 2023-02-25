@@ -8,17 +8,12 @@ import (
 	"time"
 
 	"encoding/json"
+	"github.com/bobyard/indexer/db"
 	"github.com/bobyard/indexer/models"
 	"github.com/bobyard/indexer/suimodels"
-	"github.com/go-xorm/xorm"
-	_ "github.com/lib/pq"
+	"github.com/joho/godotenv"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-)
-
-const (
-	APTOS = 0
-	SUI   = 1
 )
 
 func failOnError(err error, msg string) {
@@ -27,49 +22,35 @@ func failOnError(err error, msg string) {
 	}
 }
 
-var engine *xorm.Engine
-var sui *xorm.Engine
-
-func Connect() {
-	connStr := "user=obj password=!Woaini521 dbname=objdb host=127.0.0.1 port=5432 sslmode=disable"
-	var err error
-	engine, err = xorm.NewEngine("postgres", connStr)
-	if err != nil {
-		log.Panicf("%v", err)
-	}
-}
-
-func ConnectSui() {
-	connStr := "user=sui_indexer password=!Woaini521 dbname=indexer host=127.0.0.1 port=5432 sslmode=disable"
-	var err error
-	sui, err = xorm.NewEngine("postgres", connStr)
-	if err != nil {
-		log.Panicf("%v", err)
-	}
-}
-
 func main() {
-	Connect()
-	ConnectSui()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	bobyard_db := os.Getenv("BOBYARD")
+	sui_db := os.Getenv("SUIDB")
+	mq := os.Getenv("MQ")
+	db.Connect(bobyard_db)
+	db.ConnectSui(sui_db)
 
 	go func() {
 		for {
 			collections := make([]*models.Collections, 0)
-			err := engine.Where("chain_id = ?", SUI).Find(&collections)
+			err := db.Engine.Where("chain_id = ?", db.SUI).Find(&collections)
 			if err != nil {
 				log.Printf("%v", err)
 			}
 
 			for _, collection := range collections {
 				objects := make([]*suimodels.Objects, 0)
-				err = sui.Where("object_type = ?", collection.CollectionId).Find(&objects)
+				err = db.Sui.Where("object_type = ?", collection.CollectionId).Find(&objects)
 				if err != nil {
 					log.Printf("faild %v", err)
 				}
 
 				collection.Supply = int64(len(objects))
 				//TODO find a offer and update foolr price
-				_, err := engine.Id(collection.Id).Update(collection)
+				_, err := db.Engine.Id(collection.Id).Update(collection)
 				if err != nil {
 					log.Printf("update faild %v", err)
 				}
@@ -80,14 +61,7 @@ func main() {
 		}
 	}()
 
-	f, err := os.Create("sql.log")
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	engine.SetLogger(xorm.NewSimpleLogger(f))
-
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/guest")
+	conn, err := amqp.Dial(mq)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -122,7 +96,7 @@ func main() {
 				}
 
 				list := new(models.Lists)
-				list.ChainId = SUI
+				list.ChainId = db.SUI
 				list.TokenId = listEvent.MoveEvent.Fields.ListID
 				list.SellerAddress = listEvent.MoveEvent.Fields.Owner
 				s, err := strconv.Atoi(listEvent.MoveEvent.Fields.Ask)
@@ -134,7 +108,7 @@ func main() {
 				list.SellerCoinId = 1
 				list.SellerEndTime = time.Now()
 
-				_, err = engine.Insert(list)
+				_, err = db.Engine.Insert(list)
 				if err != nil {
 					log.Printf("%v", err)
 				}
@@ -153,7 +127,7 @@ func main() {
 				}
 
 				list := new(models.Lists)
-				_, err := engine.Where("token_id = ?", buy.MoveEvent.Fields.ListID).Delete(list)
+				_, err := db.Engine.Where("token_id = ?", buy.MoveEvent.Fields.ListID).Delete(list)
 				if err != nil {
 					log.Panicf("%s", err)
 				}
@@ -164,10 +138,10 @@ func main() {
 				order.SellerAddress = buy.MoveEvent.Fields.Owner
 				order.BuyerAddress = buy.MoveEvent.Fields.Buyer
 				order.Amount = buy.MoveEvent.Fields.Ask
-				order.CoinId = SUI
+				order.CoinId = db.SUI
 				order.ChainId = 1
 				order.Time = time.Now()
-				_, err = engine.Insert(list)
+				_, err = db.Engine.Insert(list)
 				if err != nil {
 					log.Printf("%v", err)
 				}
@@ -183,12 +157,12 @@ func main() {
 				offerDB := new(models.Offers)
 				offerDB.TokenId = offer.MoveEvent.Fields.ListID
 				offerDB.OfferId = offer.MoveEvent.Fields.OfferID
-				offerDB.ChainId = SUI
+				offerDB.ChainId = db.SUI
 				offerDB.BuyerAddress = offer.MoveEvent.Fields.Owner
 				offerDB.Item = ""   //TODO
 				offerDB.Amount = "" //TODO
 
-				_, err = engine.Insert(offerDB)
+				_, err = db.Engine.Insert(offerDB)
 
 				if err != nil {
 					log.Printf("%v", err)
@@ -203,7 +177,7 @@ func main() {
 				}
 
 				offer := new(models.Offers)
-				_, err := engine.Where("offer_id = ?", cancel.MoveEvent.Fields.OfferID).Delete(offer)
+				_, err := db.Engine.Where("offer_id = ?", cancel.MoveEvent.Fields.OfferID).Delete(offer)
 				if err != nil {
 					log.Panicf("%s", err)
 				}
@@ -216,13 +190,13 @@ func main() {
 				}
 
 				list := new(models.Lists)
-				_, err := engine.Where("token_id = ?", accpet.MoveEvent.Fields.ListID).Delete(list)
+				_, err := db.Engine.Where("token_id = ?", accpet.MoveEvent.Fields.ListID).Delete(list)
 				if err != nil {
 					log.Panicf("%s", err)
 				}
 				// let all offer cancel or maybe owner take by self
 				offer := new(models.Offers)
-				_, err = engine.Where("offer_id = ?", accpet.MoveEvent.Fields.OfferID).Delete(offer)
+				_, err = db.Engine.Where("offer_id = ?", accpet.MoveEvent.Fields.OfferID).Delete(offer)
 				if err != nil {
 					log.Panicf("%s", err)
 				}
@@ -233,10 +207,10 @@ func main() {
 				order.SellerAddress = accpet.MoveEvent.Fields.Owner
 				order.BuyerAddress = accpet.MoveEvent.Fields.Buyer
 				order.Amount = "1" //TODO make this real
-				order.CoinId = SUI
+				order.CoinId = db.SUI
 				order.ChainId = 1
 				order.Time = time.Now()
-				_, err = engine.Insert(list)
+				_, err = db.Engine.Insert(list)
 				if err != nil {
 					log.Printf("%v", err)
 				}

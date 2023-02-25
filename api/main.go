@@ -1,46 +1,26 @@
 package main
 
 import (
+	"github.com/bobyard/indexer/db"
 	"github.com/bobyard/indexer/models"
 	"github.com/bobyard/indexer/suimodels"
 	"github.com/gin-gonic/gin"
-	"github.com/go-xorm/xorm"
-	_ "github.com/lib/pq"
+	"github.com/joho/godotenv"
+
 	"log"
 	"net/http"
+	"os"
 )
-
-const (
-	APTOS = 0
-	SUI   = 1
-)
-
-var Engine *xorm.Engine
-var Sui *xorm.Engine
-
-func ConnectSui() {
-	connStr := "user=sui_indexer password=!Woaini521 dbname=indexer host=127.0.0.1 port=5432 sslmode=disable"
-	var err error
-	Sui, err = xorm.NewEngine("postgres", connStr)
-	if err != nil {
-		log.Panicf("%v", err)
-	}
-}
-
-func Connect() {
-
-	connStr := "user=obj password=!Woaini521 dbname=objdb host=127.0.0.1 port=5432 sslmode=disable"
-	var err error
-	Engine, err = xorm.NewEngine("postgres", connStr)
-	if err != nil {
-		log.Panicf("%v", err)
-	}
-	//Engine.SetLogger(de)
-}
 
 func main() {
-	Connect()
-	ConnectSui()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	bobyard_db := os.Getenv("BOBYARD")
+	sui_db := os.Getenv("SUIDB")
+	db.Connect(bobyard_db)
+	db.ConnectSui(sui_db)
 
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
@@ -51,7 +31,7 @@ func main() {
 
 	r.GET("collections", func(c *gin.Context) {
 		collections := make([]*models.Collections, 0)
-		err := Engine.Where("chain_id = ?", SUI).Find(&collections)
+		err := db.Engine.Where("chain_id = ?", db.SUI).Find(&collections)
 		if err != nil {
 			log.Printf("%v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -66,7 +46,7 @@ func main() {
 		id := c.Param("id")
 
 		collection := new(models.Collections)
-		_, err := Engine.ID(id).Get(collection)
+		_, err := db.Engine.ID(id).Get(collection)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -75,7 +55,7 @@ func main() {
 		}
 
 		objects := make([]*suimodels.Objects, 0)
-		err = Sui.Where("object_type = ? and object_status != 'DELETED' ", collection.CollectionId).Find(&objects)
+		err = db.Sui.Where("object_type = ? and object_status != 'DELETED' ", collection.CollectionId).Find(&objects)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -84,7 +64,7 @@ func main() {
 		}
 
 		list := make([]*models.Lists, 0)
-		err = Engine.Where("chain_id = ? and object_type", SUI, collection.CollectionId).Find(list)
+		err = db.Engine.Where("chain_id = ? and object_type", db.SUI, collection.CollectionId).Find(list)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -103,7 +83,7 @@ func main() {
 
 		//ALL objects
 		objects := make([]*suimodels.Objects, 0)
-		err := Sui.Where("owner_address = ? and object_status != 'DELETED' ", wallet).Find(&objects)
+		err := db.Sui.Where("owner_address = ? and object_status != 'DELETED' ", wallet).Find(&objects)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -113,7 +93,7 @@ func main() {
 
 		// query owner list
 		list := make([]*models.Lists, 0)
-		err = Engine.Where("chain_id = ? and seller_address", SUI, wallet).Find(list)
+		err = db.Engine.Where("chain_id = ? and seller_address", db.SUI, wallet).Find(list)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
@@ -123,7 +103,7 @@ func main() {
 
 		// query owner offer
 		offer := make([]*models.Offers, 0)
-		err = Engine.Where("chain_id = ? and buyer_address =? ", SUI, wallet).Find(offer)
+		err = db.Engine.Where("chain_id = ? and buyer_address =? ", db.SUI, wallet).Find(offer)
 		if err != nil {
 			log.Printf("faild %v", err)
 			c.JSON(http.StatusOK, gin.H{
