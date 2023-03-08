@@ -1,12 +1,14 @@
 module github.com/bobyard/indexer
 
-go 1.20
+go 1.19
 
 require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-xorm/xorm v0.7.9
+	github.com/gorilla/websocket v1.5.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.7
+	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/rabbitmq/amqp091-go v1.7.0
 )
 

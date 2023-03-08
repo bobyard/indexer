@@ -1,6 +1,8 @@
 /vendor/
+.idea/
 indexer
 sql.log
 api/api
 sui.log
 bobyard.log
+sui.log.*
