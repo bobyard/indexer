@@ -1,7 +1,7 @@
 package models
 
 type Offers struct {
-	Id           int    `xorm:"not null pk default nextval('offers_id_seq'::regclass) autoincr INTEGER"`
+	Id           int    `xorm:"SERIAL"`
 	TokenId      string `xorm:"VARCHAR"`
 	BuyerAddress string `xorm:"VARCHAR"`
 	Item         string `xorm:"VARCHAR"`

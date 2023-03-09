@@ -5,7 +5,7 @@ import (
 )
 
 type Domains struct {
-	Id           int       `xorm:"not null pk default nextval('domains_id_seq'::regclass) autoincr INTEGER"`
+	Id           int       `xorm:"SERIAL"`
 	ChainId      int64     `xorm:"not null BIGINT"`
 	HashId       string    `xorm:"TEXT"`
 	Domain       string    `xorm:"not null unique(ttyp_index) VARCHAR"`

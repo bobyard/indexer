@@ -5,7 +5,7 @@ import (
 )
 
 type Lists struct {
-	Id            int       `xorm:"not null pk default nextval('lists_id_seq'::regclass) autoincr unique INTEGER"`
+	Id            int       `xorm:"SERIAL"`
 	ChainId       int64     `xorm:"not null BIGINT"`
 	TokenId       string    `xorm:"not null VARCHAR"`
 	SellerAddress string    `xorm:"not null TEXT"`

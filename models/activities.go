@@ -5,7 +5,7 @@ import (
 )
 
 type Activities struct {
-	Id                   int       `xorm:"not null pk default nextval('activities_id_seq'::regclass) autoincr INTEGER"`
+	Id                   int       `xorm:"SERIAL"`
 	ChainId              int64     `xorm:"not null BIGINT"`
 	Version              int64     `xorm:"not null pk unique(event_index) index BIGINT"`
 	EventAccountAddress  string    `xorm:"not null unique(event_index) TEXT"`

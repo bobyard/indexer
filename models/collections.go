@@ -5,7 +5,7 @@ import (
 )
 
 type Collections struct {
-	Id               int       `xorm:"not null pk default nextval('collections_id_seq'::regclass) autoincr unique INTEGER"`
+	Id               int       `xorm:"SERIAL"`
 	ChainId          int64     `xorm:"not null BIGINT"`
 	Slug             string    `xorm:"TEXT"`
 	CollectionId     string    `xorm:"not null unique VARCHAR"`

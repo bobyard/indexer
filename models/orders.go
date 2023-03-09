@@ -5,7 +5,7 @@ import (
 )
 
 type Orders struct {
-	Id            int       `xorm:"not null pk default nextval('orders_id_seq'::regclass) autoincr INTEGER"`
+	Id            int       `xorm:"SERIAL"`
 	TokenId       string    `xorm:"not null VARCHAR"`
 	SellerAddress string    `xorm:"not null VARCHAR"`
 	BuyerAddress  string    `xorm:"not null VARCHAR"`

@@ -5,7 +5,7 @@ import (
 )
 
 type Tokens struct {
-	Id                       int       `xorm:"not null pk default nextval('tokens_id_seq'::regclass) autoincr INTEGER"`
+	Id                       int       `xorm:"SERIAL"`
 	ChainId                  int64     `xorm:"not null BIGINT"`
 	TokenId                  string    `xorm:"not null unique VARCHAR"`
 	CollectionId             string    `xorm:"not null VARCHAR"`

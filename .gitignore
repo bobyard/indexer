@@ -6,3 +6,4 @@ api/api
 sui.log
 bobyard.log
 sui.log.*
+syncdb

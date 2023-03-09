@@ -2,28 +2,55 @@ package main
 
 import (
 	"fmt"
+	"github.com/bobyard/indexer/db"
+	"github.com/bobyard/indexer/models"
+	"github.com/bobyard/indexer/pkg/logger"
+	"github.com/bobyard/indexer/suimodels"
+	"github.com/joho/godotenv"
+	"log"
 	"net/url"
+	"os"
 	"sync"
+	"time"
 
+	_ "github.com/bobyard/indexer/pkg/logger"
 	"github.com/gorilla/websocket"
 	"github.com/panjf2000/ants/v2"
 )
 
 func main() {
 	defer ants.Release()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	bobYardDB := os.Getenv("BOBYARD")
+	db.Connect(bobYardDB)
+
+	msgChanel := make(chan []byte, 1000)
+
 	// Use the common pool.
 	var wg sync.WaitGroup
-	syncCalculateSum := func() {
-		fmt.Println(1)
+	worker := func() {
+		for {
+			select {
+			case msg := <-msgChanel:
+				logger.Logger.Info().Msg(string(msg))
+
+				if res := CatchToDB(msg); res {
+					logger.Logger.Error().Err(fmt.Errorf("faild to catch to db"))
+				}
+			}
+		}
 		wg.Done()
 	}
 
 	runTimes := 100
 	for i := 0; i < runTimes; i++ {
 		wg.Add(1)
-		_ = ants.Submit(syncCalculateSum)
+		_ = ants.Submit(worker)
 	}
-	wg.Wait()
 
 	websocketUri := url.URL{Scheme: "wss", Host: "fullnode.devnet.sui.io:443", Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(websocketUri.String(), nil)
@@ -35,16 +62,53 @@ func main() {
 	sendMsg := "{\"jsonrpc\":\"2.0\", \"id\": 1, \"method\": \"sui_subscribeEvent\", \"params\": [{\"All\":[{\"EventType\":\"MoveEvent\"}, {\"Package\":\"0x2\"}, {\"Module\":\"devnet_nft\"}]}]}"
 	err = c.WriteMessage(websocket.TextMessage, []byte(sendMsg))
 	if err != nil {
-		fmt.Println("write:", err)
+		logger.Logger.Error().Err(err)
 		return
 	}
 
-	for {
-		_, message, err := c.ReadMessage()
-		if err != nil {
-			fmt.Println(err)
-		}
+	//For the websocket
+	wg.Add(1)
+	go func() {
+		for {
+			_, message, err := c.ReadMessage()
+			if err != nil {
+				logger.Logger.Error().Err(err)
+			}
 
-		fmt.Println(string(message))
-	}
+			msgChanel <- message
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		for {
+			collections := make([]*models.Collections, 0)
+			err := db.Engine.Where("chain_id = ?", db.SUI).Find(&collections)
+			if err != nil {
+				logger.Logger.Error().Err(err)
+			}
+
+			for _, collection := range collections {
+				objects := make([]*suimodels.Objects, 0)
+				err = db.Sui.Where("object_type = ?", collection.CollectionId).Find(&objects)
+				if err != nil {
+					logger.Logger.Error().Err(err)
+				}
+
+				collection.Supply = int64(len(objects))
+				//TODO find offer and update foolr price
+				_, err := db.Engine.Id(collection.Id).Update(collection)
+				if err != nil {
+					logger.Logger.Error().Err(err)
+				}
+			}
+
+			m, _ := time.ParseDuration("5s")
+			time.Sleep(m)
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
 }

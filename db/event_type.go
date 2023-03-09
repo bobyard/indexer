@@ -1,4 +1,4 @@
-package main
+package db
 
 type MarketCreate struct {
 	MoveEvent struct {
