@@ -2,7 +2,7 @@
 .idea/
 indexer
 sql.log
-api/api
+bin/api/api
 sui.log
 bobyard.log
 sui.log.*

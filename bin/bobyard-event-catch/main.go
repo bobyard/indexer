@@ -52,14 +52,14 @@ func main() {
 		_ = ants.Submit(worker)
 	}
 
-	websocketUri := url.URL{Scheme: "wss", Host: "fullnode.devnet.sui.io:443", Path: "/"}
+	websocketUri := url.URL{Scheme: "ws", Host: "localhost:9000", Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(websocketUri.String(), nil)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	sendMsg := "{\"jsonrpc\":\"2.0\", \"id\": 1, \"method\": \"sui_subscribeEvent\", \"params\": [{\"All\":[{\"EventType\":\"MoveEvent\"}, {\"Package\":\"0x2\"}, {\"Module\":\"devnet_nft\"}]}]}"
+	sendMsg := "{\"jsonrpc\":\"2.0\", \"id\": 1, \"method\": \"sui_subscribeEvent\", \"params\": [{\"All\":[{\"EventType\":\"MoveEvent\"}, {\"Package\":\"0x1647fc0e5f28c100e2c60fac3ddfb15c1bcf1422001a4fbd5f746be0eb64a0c5\"}]}]}"
 	err = c.WriteMessage(websocket.TextMessage, []byte(sendMsg))
 	if err != nil {
 		logger.Logger.Error().Err(err)
